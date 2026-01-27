@@ -262,25 +262,29 @@ def insert_prf_to_crm(prf):
     # =========================
     # GET VENDOR ID
     # =========================
-    vendor_name = prf.get("vendor", "")
-    vendor_id = None
+    # vendor_name = prf.get("vendor", "")
+    # vendor_id = None
     
-    if vendor_name:
-        vendor_id = get_vendor_id_by_name(vendor_name, access_token)
+    # if vendor_name:
+    #     vendor_id = get_vendor_id_by_name(vendor_name, access_token)
     
-    if not vendor_id:
-        error_msg = f"Vendor '{vendor_name}' not found in Zoho CRM. Please provide a valid vendor name or ID."
-        print(f"\n❌ ERROR: {error_msg}")
-        return {
-            "status_code": 400,
-            "zoho_response": {"error": error_msg},
-            "generated_prf_no": unique_prf_no,
-            "success": False
-        }
+    # if not vendor_id:
+    #     error_msg = f"Vendor '{vendor_name}' not found in Zoho CRM. Please provide a valid vendor name or ID."
+    #     print(f"\n❌ ERROR: {error_msg}")
+    #     return {
+    #         "status_code": 400,
+    #         "zoho_response": {"error": error_msg},
+    #         "generated_prf_no": unique_prf_no,
+    #         "success": False
+    #     }
 
     # =========================
     # FINAL ZOHO PAYLOAD
     # =========================
+
+    FIXED_VENDOR_LOOKUP_ID = "4730012000032844003"
+
+
     print("\n" + "="*60)
     print("📤 BUILDING ZOHO CRM PAYLOAD")
     print("="*60)
@@ -295,10 +299,11 @@ def insert_prf_to_crm(prf):
                 "PO_Date": str(date.today()),
                 "Product_Group": prf.get("productGroup", ""), 
 
-                # ===== VENDOR =====
-                "Vendor_Name": {
-                    "id": vendor_id
-                },
+                # ===== VENDOR (FINAL CORRECT MAPPING) =====
+            "Vendor_Name": {
+                "id": 4730012000032844003   # 🔒 FIXED LOOKUP
+            },
+            "Vendor": prf.get("vendor", ""),  # 🧾 SAP dropdown selected value
 
                 # ===== FINANCIALS =====
                 "Discount": safe_float(prf.get("bulkDiscount"), 0),
