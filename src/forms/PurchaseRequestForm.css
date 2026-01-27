@@ -4,37 +4,45 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  background: #000000;
-  padding: 20px;
+  padding: 60px 20px;
+  background: #000;
 }
 
 /* FORM CARD */
 .prf-form {
   width: 100%;
-  max-width: 1600px;         /* large form width */
-  background: #111111;
-  padding: 40px 60px;
+  max-width: 1200px;
+  background: #111;
+  padding: 40px 50px;
   border-radius: 8px;
   border: 1px solid #222;
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
 }
-
 
 /* SECTION */
 .prf-section {
-  margin-bottom: 36px;
+  margin-bottom: 40px;
 }
 
 .prf-section h3 {
   margin-bottom: 16px;
   font-size: 18px;
-  color: #ffffff;
+  color: #fff;
   border-bottom: 1px solid #333;
   padding-bottom: 6px;
 }
 
-/* FIELD */
+/* FIELD GRID */
+.prf-field-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+/* FIELD WRAPPER */
 .prf-field {
+  display: flex;
+  flex-direction: column;
   margin-bottom: 18px;
 }
 
@@ -50,31 +58,30 @@
 .prf-select,
 .prf-textarea {
   width: 100%;
-  background: #000000;
-  color: #ffffff;
-  padding: 10px;
+  background: #000;
+  color: #fff;
+  padding: 12px;
   border-radius: 4px;
   border: 1px solid #444;
+  font-size: 14px;
 }
 
 .prf-input:disabled {
   background: #1a1a1a;
-  color: #aaaaaa;
+  color: #aaa;
 }
 
 .prf-textarea {
   min-height: 90px;
+  resize: vertical;
 }
 
-/* RADIO / CHECKBOX */
+/* RADIO OPTIONS */
 .prf-options {
   display: flex;
   gap: 24px;
   margin-top: 6px;
-}
-
-.prf-options label {
-  color: #ffffff;
+  color: #fff;
 }
 
 /* ERROR */
@@ -84,7 +91,7 @@
   font-size: 12px;
 }
 
-/* SUBMIT */
+/* SUBMIT + BUTTONS */
 .prf-submit-wrapper {
   text-align: right;
   margin-top: 40px;
@@ -93,17 +100,23 @@
 .prf-submit-btn {
   padding: 12px 28px;
   font-size: 15px;
-  background: #ffffff;
-  color: #000000;
+  background: #fff;
+  color: #000;
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  transition: background 0.2s;
 }
+
+.prf-submit-btn:hover {
+  background: #ddd;
+}
+
 .prf-add-item-btn {
   margin-top: 10px;
   padding: 12px 20px;
-  background: #ffffff;   /* WHITE BUTTON */
-  color: #000000;        /* BLACK TEXT */
+  background: #fff;
+  color: #000;
   border: none;
   border-radius: 6px;
   font-size: 15px;
@@ -113,36 +126,60 @@
   gap: 8px;
 }
 
-/* TWO-FIELD GRID LAYOUT */
-.prf-field-group {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 24px;
+/* ================= ITEM FORM + CARDS ================= */
+.prf-item-form {
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 24px;
+  margin-top: 16px;
 }
 
-/* FIELD STYLING (unchanged) */
-.prf-field {
+.prf-item-form h4 {
+  color: #fff;
+  margin-bottom: 16px;
+  font-size: 16px;
+  border-bottom: 1px solid #333;
+  padding-bottom: 6px;
+}
+
+.prf-item-card-list {
   display: flex;
   flex-direction: column;
-  margin-bottom: 18px;
+  gap: 16px;
+  margin-top: 20px;
 }
 
-/* === TWO-COLUMN LAYOUT === */
-.prf-field-group {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 24px;
+.prf-item-card {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 16px 20px;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.2s;
 }
 
+.prf-item-card:hover {
+  background: #222;
+}
+
+.prf-item-card-content p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #ccc;
+}
+
+/* RESPONSIVENESS */
 @media (max-width: 768px) {
+  .prf-form {
+    padding: 20px;
+  }
+
   .prf-field-group {
     grid-template-columns: 1fr;
   }
 }
 
-/* Optional spacing fix */
-.prf-field {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 18px;
-}
