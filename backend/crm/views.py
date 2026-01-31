@@ -190,3 +190,147 @@ def search_vendors(request):
         print("\n" + "🔍"*30)
         print("🏁 SEARCH REQUEST COMPLETED")
         print("🔍"*30 + "\n")
+
+
+@csrf_exempt
+def search_products(request):
+    """
+    ✅ NEW: API endpoint to search products by Product_Code from Zoho CRM
+    GET /api/products/search/?q=search_keyword
+    """
+    
+    print("\n" + "🔍"*30)
+    print("🔔 PRODUCT SEARCH REQUEST RECEIVED")
+    print("🔍"*30)
+    
+    if request.method != "GET":
+        print(f"❌ Invalid Method: {request.method}")
+        return JsonResponse(
+            {"error": "Only GET allowed"},
+            status=405
+        )
+    
+    try:
+        from .search_record import search_product_by_code
+        
+        # Get search query from URL parameter
+        query = request.GET.get('q', '')
+        
+        print(f"\n📥 Product Code Search Query: '{query}'")
+        print(f"   Query Length: {len(query)} characters")
+        
+        if len(query) < 2:
+            print("   ⚠️  Query too short (minimum 2 characters)")
+            return JsonResponse({
+                "success": True,
+                "products": [],
+                "count": 0,
+                "message": "Please enter at least 2 characters"
+            })
+        
+        # Search Zoho CRM Products
+        print("\n🚀 Calling Zoho product search...")
+        products = search_product_by_code(query)
+        
+        print(f"\n✅ Search completed: {len(products)} products found")
+        
+        response_data = {
+            "success": True,
+            "products": products,
+            "count": len(products)
+        }
+        
+        print("\n📤 SENDING RESPONSE TO FRONTEND:")
+        print(json.dumps(response_data, indent=2))
+        
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        print(f"\n❌ SEARCH ERROR: {e}")
+        print(f"   Error Type: {type(e).__name__}")
+        
+        import traceback
+        print("\n📋 FULL TRACEBACK:")
+        print(traceback.format_exc())
+        
+        return JsonResponse({
+            "success": False,
+            "error": str(e),
+            "error_type": type(e).__name__
+        }, status=500)
+    
+    finally:
+        print("\n" + "🔍"*30)
+        print("🏁 PRODUCT SEARCH REQUEST COMPLETED")
+        print("🔍"*30 + "\n")
+
+
+@csrf_exempt
+def search_products_by_group(request):
+    """
+    ✅ NEW: API endpoint to fetch ALL products by Product_Group for caching
+    GET /api/products/by-group/?group=IT
+    """
+    
+    print("\n" + "📦"*30)
+    print("🔔 PRODUCT GROUP SEARCH REQUEST RECEIVED")
+    print("📦"*30)
+    
+    if request.method != "GET":
+        print(f"❌ Invalid Method: {request.method}")
+        return JsonResponse(
+            {"error": "Only GET allowed"},
+            status=405
+        )
+    
+    try:
+        from .search_record import search_products_by_group as search_by_group
+        
+        # Get product group from URL parameter
+        group = request.GET.get('group', '')
+        
+        print(f"\n📥 Product Group: '{group}'")
+        
+        if not group:
+            print("   ⚠️  Product Group is required")
+            return JsonResponse({
+                "success": False,
+                "error": "Product Group parameter is required"
+            }, status=400)
+        
+        # Search Zoho CRM Products by Group
+        print(f"\n🚀 Fetching all products for group '{group}'...")
+        products = search_by_group(group)
+        
+        print(f"\n✅ Fetch completed: {len(products)} products found")
+        
+        response_data = {
+            "success": True,
+            "products": products,
+            "count": len(products),
+            "product_group": group
+        }
+        
+        print("\n📤 SENDING RESPONSE TO FRONTEND:")
+        print(f"   Total products: {len(products)}")
+        
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        print(f"\n❌ SEARCH ERROR: {e}")
+        print(f"   Error Type: {type(e).__name__}")
+        
+        import traceback
+        print("\n📋 FULL TRACEBACK:")
+        print(traceback.format_exc())
+        
+        return JsonResponse({
+            "success": False,
+            "error": str(e),
+            "error_type": type(e).__name__
+        }, status=500)
+    
+    finally:
+        print("\n" + "📦"*30)
+        print("🏁 PRODUCT GROUP SEARCH COMPLETED")
+        print("📦"*30 + "\n")

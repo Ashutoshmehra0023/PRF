@@ -3,6 +3,9 @@ import json
 import uuid
 from datetime import date
 
+# Import the new Product_Group ID lookup function
+from .search_record import get_product_group_id
+
 # =========================
 # ZOHO CONFIG
 # =========================
@@ -233,9 +236,39 @@ def insert_prf_to_crm(prf):
     print(f"\n🆔 Generated PRF Number: {unique_prf_no}")
 
     # =========================
+    # ✅ NEW: CONVERT PRODUCT_GROUP STRING TO ID
+    # =========================
+    product_group_name = prf.get("productGroup", "")
+    product_group_id = None
+    
+    print("\n" + "="*60)
+    print("🔄 CONVERTING PRODUCT_GROUP TO ID")
+    print("="*60)
+    print(f"📦 Product Group from frontend: '{product_group_name}'")
+    
+    if product_group_name and product_group_name.strip() != "":
+        try:
+            product_group_id = get_product_group_id(product_group_name)
+            
+            if product_group_id:
+                print(f"   ✅ Successfully converted to ID: {product_group_id}")
+            else:
+                print(f"   ⚠️  Could not find Product_Group ID, will use string as fallback")
+                product_group_id = product_group_name  # Fallback to original string
+        except Exception as e:
+            print(f"   ❌ Error looking up Product_Group ID: {e}")
+            print(f"   ⚠️  Using original string as fallback")
+            product_group_id = product_group_name  # Fallback to original string
+    else:
+        print(f"   ⚠️  No Product_Group provided")
+        product_group_id = None
+
+    # =========================
     # BUILD LINE ITEMS
     # =========================
-    print("\n📋 PROCESSING LINE ITEMS:")
+    print("\n" + "="*60)
+    print("📋 PROCESSING LINE ITEMS")
+    print("="*60)
     purchase_items = []
 
     for idx, item in enumerate(prf.get("items", []), 1):
@@ -260,7 +293,7 @@ def insert_prf_to_crm(prf):
     print(f"\n✅ Total Items Processed: {len(purchase_items)}")
 
     # =========================
-    # GET VENDOR ID
+    # GET VENDOR ID (COMMENTED OUT AS PER ORIGINAL)
     # =========================
     # vendor_name = prf.get("vendor", "")
     # vendor_id = None
@@ -284,7 +317,6 @@ def insert_prf_to_crm(prf):
 
     FIXED_VENDOR_LOOKUP_ID = "4730012000032844003"
 
-
     print("\n" + "="*60)
     print("📤 BUILDING ZOHO CRM PAYLOAD")
     print("="*60)
@@ -297,13 +329,15 @@ def insert_prf_to_crm(prf):
                 "PO_Number": unique_prf_no,
                 "Requisition_No": unique_prf_no,
                 "PO_Date": str(date.today()),
-                "Product_Group": prf.get("productGroup", ""), 
+                
+                # ✅ UPDATED: Use Product_Group ID instead of string
+                "Product_Group": product_group_id,  # Now sends ID like "4730012000047947131"
 
                 # ===== VENDOR (FINAL CORRECT MAPPING) =====
-            "Vendor_Name": {
-                "id": 4730012000032844003   # 🔒 FIXED LOOKUP
-            },
-            "Vendor": prf.get("vendor", ""),  # 🧾 SAP dropdown selected value
+                "Vendor_Name": {
+                    "id": FIXED_VENDOR_LOOKUP_ID   # 🔒 FIXED LOOKUP
+                },
+                "Vendor": prf.get("vendor", ""),  # 🧾 SAP dropdown selected value
 
                 # ===== FINANCIALS =====
                 "Discount": safe_float(prf.get("bulkDiscount"), 0),
@@ -376,7 +410,7 @@ def insert_prf_to_crm(prf):
 if __name__ == "__main__":
     dummy = {
         "email": "test@company.com",
-        "productGroup": "Electronics",
+        "productGroup": "VERACITY PRODUCTS",  # ✅ Updated to match real Product_Group name
         "vendor": "Test Vendor",
         "currency": "INR",
         "bulkDiscount": "50",

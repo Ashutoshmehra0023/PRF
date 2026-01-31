@@ -16,10 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from crm.views import create_prf, search_vendors  # ← Updated import
+from crm.views import create_prf, search_vendors, search_products, search_products_by_group  # ← Updated import
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("api/prf/create/", create_prf),
-    path("api/vendors/search/", search_vendors),  # ← NEW: Vendor search endpoint
+    path("api/prf/create/", create_prf),  # ← Existing: Create PRF
+    path("api/vendors/search/", search_vendors),  # ← Existing: Vendor search
+    path("api/products/search/", search_products),  # ← Existing: Product search by code
+    path("api/products/by-group/", search_products_by_group),  # ← NEW: Products by group (for caching)
 ]
