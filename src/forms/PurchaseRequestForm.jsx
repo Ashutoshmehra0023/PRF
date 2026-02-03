@@ -28,6 +28,14 @@ export default function PurchaseRequestForm({ email, productGroup }) {
   const [productNameSuggestions, setProductNameSuggestions] = useState([]);
   const [showProductNameDropdown, setShowProductNameDropdown] = useState(false);
 
+  // Sales Margin and Sales Price
+  const [salesPriceDisabled, setSalesPriceDisabled] = useState(false);
+  const [salesMarginDisabled, setSalesMarginDisabled] = useState(false);
+
+  // ✅ Delete confirmation states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+
   const form = useForm({
     defaultValues: {
       stage: "S1",
@@ -173,21 +181,63 @@ export default function PurchaseRequestForm({ email, productGroup }) {
     const currentItems = [...form.state.values.items];
 
     if (editingIndex !== null) {
-      // update existing
       currentItems[editingIndex] = newItem;
       console.log(`✏️ Updated item at index ${editingIndex}:`, newItem);
     } else {
-      // add new
       currentItems.push(newItem);
       console.log("➕ Added new item:", newItem);
     }
 
     form.setFieldValue("items", currentItems);
+    form.setFieldValue("itemCount", currentItems.length);
     console.log(`📋 Total items: ${currentItems.length}`);
     
     setNewItem({});
     setIsItemOpen(false);
     setEditingIndex(null);
+  };
+
+  // ✅ Handle delete item - show confirmation popup
+  const handleDeleteClick = (index, e) => {
+    // Prevent card click event from firing
+    e.stopPropagation();
+    
+    console.log(`🗑️ Delete requested for item at index ${index}`);
+    setItemToDelete(index);
+    setShowDeleteConfirm(true);
+  };
+
+  // ✅ Confirm delete - actually remove the item
+  const confirmDelete = () => {
+    if (itemToDelete === null) {
+      console.log("⚠️ No item to delete");
+      return;
+    }
+
+    const currentItems = [...form.state.values.items];
+    const deletedItem = currentItems[itemToDelete];
+    
+    console.log(`🗑️ Deleting item at index ${itemToDelete}:`, deletedItem);
+    
+    // Remove the item from array
+    currentItems.splice(itemToDelete, 1);
+    
+    // Update form values
+    form.setFieldValue("items", currentItems);
+    form.setFieldValue("itemCount", currentItems.length);
+    
+    console.log(`✅ Item deleted. Remaining items: ${currentItems.length}`);
+    
+    // Close popup and reset state
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
+  };
+
+  // ✅ Cancel delete - just close the popup
+  const cancelDelete = () => {
+    console.log("❌ Delete cancelled");
+    setShowDeleteConfirm(false);
+    setItemToDelete(null);
   };
 
   // Click card to edit
@@ -228,7 +278,7 @@ export default function PurchaseRequestForm({ email, productGroup }) {
     }
   };
 
-  // ✅ NEW: Fetch and cache ALL products by Product Group (called once when opening item form)
+  // ✅ Fetch and cache ALL products by Product Group (called once when opening item form)
   const fetchAndCacheProducts = async (productGroup) => {
     if (!productGroup) {
       console.log("⚠️  No Product Group specified");
@@ -307,7 +357,7 @@ export default function PurchaseRequestForm({ email, productGroup }) {
     setShowItemNoDropdown(false);
   };
 
-  // ✅ NEW: Handle Product Name selection
+  // ✅ Handle Product Name selection
   const handleProductNameSelection = (selectedName) => {
     console.log(`\n✅ Selected Product Name: ${selectedName}`);
     
@@ -340,7 +390,59 @@ export default function PurchaseRequestForm({ email, productGroup }) {
     setShowProductNameDropdown(false);
   };
 
-  // ✅ NEW: Handle Item No selection from multiple matches (after product name was selected)
+  // Calculate Sales Margin from Sales Price
+  const calculateSalesMargin = (unitRate, salesPrice) => {
+    if (!unitRate || !salesPrice || unitRate === 0) return "";
+    const margin = ((salesPrice - unitRate) / unitRate) * 100;
+    return margin.toFixed(2);
+  };
+
+  // Calculate Sales Price from Sales Margin
+  const calculateSalesPrice = (unitRate, salesMargin) => {
+    if (!unitRate || salesMargin === "") return "";
+    const price = unitRate * (1 + salesMargin / 100);
+    return price.toFixed(2);
+  };
+
+  // Handle Sales Price change
+  const handleSalesPriceChange = (value) => {
+    const unitRate = parseFloat(newItem.unitRate) || 0;
+    const salesPrice = parseFloat(value) || 0;
+    
+    if (value === "" || value === null) {
+      setNewItem({ ...newItem, salesPrice: "", salesMargin: "" });
+      setSalesPriceDisabled(false);
+      setSalesMarginDisabled(false);
+    } else if (unitRate > 0 && salesPrice > 0) {
+      const margin = calculateSalesMargin(unitRate, salesPrice);
+      setNewItem({ ...newItem, salesPrice: value, salesMargin: margin });
+      setSalesMarginDisabled(true);
+      setSalesPriceDisabled(false);
+    } else {
+      setNewItem({ ...newItem, salesPrice: value });
+    }
+  };
+
+  // Handle Sales Margin change
+  const handleSalesMarginChange = (value) => {
+    const unitRate = parseFloat(newItem.unitRate) || 0;
+    const salesMargin = parseFloat(value);
+    
+    if (value === "" || value === null) {
+      setNewItem({ ...newItem, salesMargin: "", salesPrice: "" });
+      setSalesPriceDisabled(false);
+      setSalesMarginDisabled(false);
+    } else if (unitRate > 0 && !isNaN(salesMargin)) {
+      const price = calculateSalesPrice(unitRate, salesMargin);
+      setNewItem({ ...newItem, salesMargin: value, salesPrice: price });
+      setSalesPriceDisabled(true);
+      setSalesMarginDisabled(false);
+    } else {
+      setNewItem({ ...newItem, salesMargin: value });
+    }
+  };
+
+  // ✅ Handle Item No selection from multiple matches
   const handleItemNoSelectionFromMultiple = (selectedCode) => {
     console.log(`\n✅ Selected Item Code from multiple: ${selectedCode}`);
     
@@ -371,7 +473,87 @@ export default function PurchaseRequestForm({ email, productGroup }) {
   }, [form.state.values.productGroup]);
 
   return (
-    <div className="prf-page">
+    <>
+      {/* ✅ Delete Confirmation Popup (outside form) */}
+      {showDeleteConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 99999,
+          }}
+          onClick={cancelDelete}
+        >
+          <div
+            style={{
+              backgroundColor: "#2c2c2c",
+              padding: "30px",
+              borderRadius: "8px",
+              border: "1px solid #444",
+              maxWidth: "400px",
+              width: "90%",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ color: "#fff", marginTop: 0, marginBottom: "20px" }}>
+              🗑️ Confirm Delete
+            </h3>
+            <p style={{ color: "#ccc", marginBottom: "30px", fontSize: "15px" }}>
+              Are you sure you want to delete this item?
+              <br />
+              <strong style={{ color: "#ff6b6b" }}>This action cannot be undone.</strong>
+            </p>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={cancelDelete}
+                style={{
+                  padding: "10px 20px",
+                  backgroundColor: "#444",
+                  color: "#fff",
+                  border: "1px solid #666",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                }}
+                onMouseEnter={(e) => (e.target.style.backgroundColor = "#555")}
+                onMouseLeave={(e) => (e.target.style.backgroundColor = "#444")}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                style={{
+                  padding: "10px 20px",
+                  backgroundColor: "#ff4444",
+                  color: "#fff",
+                  border: "1px solid #ff6666",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                }}
+                onMouseEnter={(e) => (e.target.style.backgroundColor = "#ff6666")}
+                onMouseLeave={(e) => (e.target.style.backgroundColor = "#ff4444")}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <div className="prf-page">
+
       <form
         className="prf-form"
         onSubmit={(e) => {
@@ -408,7 +590,7 @@ export default function PurchaseRequestForm({ email, productGroup }) {
           <h3>Purchase Basics</h3>
           <div className="prf-field-group">
             
-            {/* ✅ UPDATED: Vendor field with dark dropdown autocomplete */}
+            {/* ✅ Vendor field with dark dropdown autocomplete */}
             <form.Field name="vendor">
               {(f) => (
                 <div className="prf-field" style={{ position: "relative" }}>
@@ -419,14 +601,12 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                     onChange={(e) => {
                       const newValue = e.target.value;
                       f.handleChange(newValue);
-                      // Only search if user is typing (not selecting from dropdown)
                       if (showVendorDropdown || newValue.length >= 3) {
                         searchVendors(newValue);
                       }
                     }}
                     onBlur={() => setTimeout(() => setShowVendorDropdown(false), 200)}
                     onFocus={() => {
-                      // Only show dropdown if we have suggestions and user typed 3+ chars
                       if (f.state.value.length >= 3 && vendorSuggestions.length > 0) {
                         setShowVendorDropdown(true);
                       }
@@ -435,7 +615,6 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                     required
                   />
                   
-                  {/* Loading indicator */}
                   {isSearchingVendors && (
                     <div style={{
                       position: "absolute",
@@ -449,7 +628,6 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                     </div>
                   )}
                   
-                  {/* ✅ FIXED: Dark dropdown with white text */}
                   {showVendorDropdown && vendorSuggestions.length > 0 && (
                     <div
                       style={{
@@ -459,7 +637,7 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                         right: 0,
                         maxHeight: "200px",
                         overflowY: "auto",
-                        backgroundColor: "#2c2c2c",  // Dark background
+                        backgroundColor: "#2c2c2c",
                         border: "1px solid #444",
                         borderRadius: "4px",
                         boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
@@ -473,7 +651,7 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                           onClick={() => {
                             f.handleChange(vendor);
                             setShowVendorDropdown(false);
-                            setVendorSuggestions([]); // Clear suggestions to prevent re-search
+                            setVendorSuggestions([]);
                             console.log(`✅ Selected vendor: ${vendor}`);
                           }}
                           style={{
@@ -481,11 +659,11 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                             cursor: "pointer",
                             borderBottom: idx < vendorSuggestions.length - 1 ? "1px solid #444" : "none",
                             fontSize: "14px",
-                            color: "#ffffff",  // White text
-                            backgroundColor: "#2c2c2c"  // Dark background
+                            color: "#ffffff",
+                            backgroundColor: "#2c2c2c"
                           }}
-                          onMouseEnter={(e) => (e.target.style.backgroundColor = "#444444")}  // Hover: lighter dark
-                          onMouseLeave={(e) => (e.target.style.backgroundColor = "#2c2c2c")}  // Normal: dark
+                          onMouseEnter={(e) => (e.target.style.backgroundColor = "#444444")}
+                          onMouseLeave={(e) => (e.target.style.backgroundColor = "#2c2c2c")}
                         >
                           {vendor}
                         </div>
@@ -493,7 +671,6 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                     </div>
                   )}
                   
-                  {/* ✅ FIXED: Dark no results message */}
                   {showVendorDropdown && vendorSuggestions.length === 0 && !isSearchingVendors && f.state.value.length >= 3 && (
                     <div
                       style={{
@@ -502,13 +679,13 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                         left: 0,
                         right: 0,
                         padding: "10px",
-                        backgroundColor: "#2c2c2c",  // Dark background
+                        backgroundColor: "#2c2c2c",
                         border: "1px solid #444",
                         borderRadius: "4px",
                         boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
                         zIndex: 1000,
                         marginTop: "2px",
-                        color: "#cccccc",  // Light gray text
+                        color: "#cccccc",
                         fontSize: "14px"
                       }}
                     >
@@ -555,6 +732,8 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                 setNewItem({});
                 setEditingIndex(null);
                 setIsItemOpen(true);
+                setSalesPriceDisabled(false);
+                setSalesMarginDisabled(false);
               }}
             >
               ➕ Add Item
@@ -590,47 +769,55 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                   ["lastPurchasePrice", "Last Purchase Price"],
                   ["scmLeadRemarks", "SCM Lead Remarks"],
                 ].map(([key, label]) => {
-                  // ✅ Special handling for itemNo field (show all cached product codes OR filtered codes)
+
+                  // ================= ITEM NO =================
                   if (key === "itemNo") {
                     const uniqueCodes = getUniqueProductCodes();
-                    const codesToShow = itemNoSuggestions.length > 0 ? itemNoSuggestions : uniqueCodes;
+                    const codesToShow =
+                      itemNoSuggestions.length > 0 ? itemNoSuggestions : uniqueCodes;
                     const isFilteredList = itemNoSuggestions.length > 0;
-                    
+
                     return (
                       <div className="prf-field" key={key} style={{ position: "relative" }}>
                         <label className="prf-label">{label}</label>
+
                         <input
                           className="prf-input"
                           value={newItem[key] || ""}
-                          onChange={(e) => {
-                            setNewItem({ ...newItem, [key]: e.target.value });
-                          }}
+                          onChange={(e) =>
+                            setNewItem({ ...newItem, [key]: e.target.value })
+                          }
                           onFocus={() => {
                             if (!isLoadingCache && isCacheLoaded && codesToShow.length > 0) {
                               setShowItemNoDropdown(true);
-                              console.log(`📋 Showing ${codesToShow.length} ${isFilteredList ? 'filtered' : 'all'} product codes`);
                             }
                           }}
-                          onBlur={() => setTimeout(() => setShowItemNoDropdown(false), 200)}
-                          placeholder={isLoadingCache ? "Loading products..." : "Click to see item codes"}
+                          onBlur={() =>
+                            setTimeout(() => setShowItemNoDropdown(false), 200)
+                          }
+                          placeholder={
+                            isLoadingCache
+                              ? "Loading products..."
+                              : "Click to see item codes"
+                          }
                           disabled={isLoadingCache}
                         />
-                        
-                        {/* Loading indicator */}
+
                         {isLoadingCache && (
-                          <div style={{
-                            position: "absolute",
-                            right: "10px",
-                            top: "50%",
-                            transform: "translateY(-50%)",
-                            color: "#666",
-                            fontSize: "12px"
-                          }}>
+                          <div
+                            style={{
+                              position: "absolute",
+                              right: "10px",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              fontSize: "12px",
+                              color: "#666",
+                            }}
+                          >
                             ⏳ Loading...
                           </div>
                         )}
-                        
-                        {/* Dropdown with product codes (all or filtered) */}
+
                         {showItemNoDropdown && codesToShow.length > 0 && (
                           <div
                             style={{
@@ -643,88 +830,62 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                               backgroundColor: "#2c2c2c",
                               border: "1px solid #444",
                               borderRadius: "4px",
-                              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
                               zIndex: 1000,
-                              marginTop: "2px"
                             }}
                           >
-                            {isFilteredList && (
-                              <div style={{
-                                padding: "6px 12px",
-                                fontSize: "11px",
-                                color: "#888",
-                                borderBottom: "1px solid #444"
-                              }}>
-                                Multiple items with same name - Select Item No:
-                              </div>
-                            )}
                             {codesToShow.map((code, idx) => (
                               <div
                                 key={idx}
-                                onClick={() => {
-                                  if (isFilteredList) {
-                                    handleItemNoSelectionFromMultiple(code);
-                                  } else {
-                                    handleItemNoSelection(code);
-                                  }
-                                }}
+                                onClick={() =>
+                                  isFilteredList
+                                    ? handleItemNoSelectionFromMultiple(code)
+                                    : handleItemNoSelection(code)
+                                }
                                 style={{
-                                  padding: "10px 12px",
+                                  padding: "10px",
                                   cursor: "pointer",
-                                  borderBottom: idx < codesToShow.length - 1 ? "1px solid #444" : "none",
-                                  fontSize: "14px",
-                                  color: "#ffffff",
-                                  backgroundColor: "#2c2c2c"
+                                  color: "#fff",
                                 }}
-                                onMouseEnter={(e) => (e.target.style.backgroundColor = "#444444")}
-                                onMouseLeave={(e) => (e.target.style.backgroundColor = "#2c2c2c")}
                               >
                                 {code}
                               </div>
                             ))}
                           </div>
                         )}
-                        
-                        {/* No cache loaded message */}
-                        {!isLoadingCache && !isCacheLoaded && (
-                          <div style={{ fontSize: "12px", color: "#999", marginTop: "4px" }}>
-                            Product cache not loaded. Please ensure Product Group is set.
-                          </div>
-                        )}
                       </div>
                     );
                   }
-                  
-                  // ✅ Special handling for productName field (show all product names OR filtered names)
+
+                  // ================= PRODUCT NAME =================
                   if (key === "productName") {
                     const allProductNames = getAllProductNames();
-                    const namesToShow = productNameSuggestions.length > 0 
-                      ? productNameSuggestions.map(p => p.product_name) 
-                      : allProductNames;
+                    const namesToShow =
+                      productNameSuggestions.length > 0
+                        ? productNameSuggestions.map((p) => p.product_name)
+                        : allProductNames;
                     const isFilteredList = productNameSuggestions.length > 0;
-                    
+
                     return (
                       <div className="prf-field" key={key} style={{ position: "relative" }}>
                         <label className="prf-label">{label}</label>
+
                         <input
                           className="prf-input"
                           value={newItem[key] || ""}
-                          onChange={(e) => {
-                            setNewItem({ ...newItem, [key]: e.target.value });
-                          }}
+                          onChange={(e) =>
+                            setNewItem({ ...newItem, [key]: e.target.value })
+                          }
                           onFocus={() => {
-                            if (!isLoadingCache && isCacheLoaded && namesToShow.length > 0) {
+                            if (!isLoadingCache && isCacheLoaded) {
                               setShowProductNameDropdown(true);
-                              console.log(`📋 Showing ${namesToShow.length} ${isFilteredList ? 'filtered' : 'all'} product names`);
                             }
                           }}
-                          onBlur={() => setTimeout(() => setShowProductNameDropdown(false), 200)}
-                          placeholder={isLoadingCache ? "Loading products..." : "Click to see product names"}
-                          disabled={isLoadingCache}
+                          onBlur={() =>
+                            setTimeout(() => setShowProductNameDropdown(false), 200)
+                          }
                         />
-                        
-                        {/* Dropdown with product names (all or filtered) */}
-                        {showProductNameDropdown && namesToShow.length > 0 && (
+
+                        {showProductNameDropdown && (
                           <div
                             style={{
                               position: "absolute",
@@ -735,72 +896,127 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                               overflowY: "auto",
                               backgroundColor: "#2c2c2c",
                               border: "1px solid #444",
-                              borderRadius: "4px",
-                              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
                               zIndex: 1000,
-                              marginTop: "2px"
                             }}
                           >
-                            {isFilteredList && (
-                              <div style={{
-                                padding: "6px 12px",
-                                fontSize: "11px",
-                                color: "#888",
-                                borderBottom: "1px solid #444"
-                              }}>
-                                Multiple items with same code - Select Product Name:
-                              </div>
-                            )}
                             {namesToShow.map((name, idx) => (
                               <div
                                 key={idx}
-                                onClick={() => {
-                                  if (isFilteredList) {
-                                    // From filtered list (after Item No selection)
-                                    const selectedProduct = productNameSuggestions[idx];
-                                    setNewItem({
-                                      ...newItem,
-                                      productName: name
-                                    });
-                                    setShowProductNameDropdown(false);
-                                    setProductNameSuggestions([]);
-                                    console.log(`✅ Selected Product Name: ${name}`);
-                                  } else {
-                                    // From all products list
-                                    handleProductNameSelection(name);
-                                  }
-                                }}
+                                onClick={() =>
+                                  isFilteredList
+                                    ? setNewItem({
+                                        ...newItem,
+                                        productName: name,
+                                      })
+                                    : handleProductNameSelection(name)
+                                }
                                 style={{
-                                  padding: "10px 12px",
+                                  padding: "10px",
                                   cursor: "pointer",
-                                  borderBottom: idx < namesToShow.length - 1 ? "1px solid #444" : "none",
-                                  fontSize: "14px",
-                                  color: "#ffffff",
-                                  backgroundColor: "#2c2c2c"
+                                  color: "#fff",
                                 }}
-                                onMouseEnter={(e) => (e.target.style.backgroundColor = "#444444")}
-                                onMouseLeave={(e) => (e.target.style.backgroundColor = "#2c2c2c")}
                               >
                                 {name}
                               </div>
                             ))}
                           </div>
                         )}
-                        
-                        {/* No cache loaded message */}
-                        {!isLoadingCache && !isCacheLoaded && (
-                          <div style={{ fontSize: "12px", color: "#999", marginTop: "4px" }}>
-                            Product cache not loaded. Please ensure Product Group is set.
+                      </div>
+                    );
+                  }
+
+                  // ================= PURCHASE TYPE (DROPDOWN) =================
+                  if (key === "purchaseType") {
+                    return (
+                      <div className="prf-field" key={key}>
+                        <label className="prf-label">{label}</label>
+                        <select
+                          className="prf-input"
+                          value={newItem[key] || ""}
+                          onChange={(e) =>
+                            setNewItem({ ...newItem, [key]: e.target.value })
+                          }
+                        >
+                          <option value="">Select Purchase Type</option>
+                          <option value="B2B">B2B</option>
+                          <option value="Stock">Stock</option>
+                          <option value="Hybrid">Hybrid</option>
+                        </select>
+                      </div>
+                    );
+                  }
+
+                  // ✅ Special handling for Sales Price
+                  if (key === "salesPrice") {
+                    return (
+                      <div className="prf-field" key={key}>
+                        <label className="prf-label">{label}</label>
+                        <input
+                          className={salesPriceDisabled ? "" : "prf-input"}
+                          type="number"
+                          step="0.01"
+                          value={newItem[key] || ""}
+                          onChange={(e) => handleSalesPriceChange(e.target.value)}
+                          disabled={salesPriceDisabled}
+                          style={salesPriceDisabled ? {
+                            width: "100%",
+                            padding: "8px 12px",
+                            fontSize: "14px",
+                            border: "1px solid #444",
+                            borderRadius: "4px",
+                            backgroundColor: "#2c2c2c",
+                            color: "#ffffff",
+                            cursor: "not-allowed"
+                          } : {}}
+                          placeholder={salesPriceDisabled ? "Auto-calculated from Sales Margin" : ""}
+                        />
+                        {salesPriceDisabled && (
+                          <div style={{ fontSize: "11px", color: "#999", marginTop: "2px" }}>
+                            ✓ Auto-calculated (clear Sales Margin to edit)
                           </div>
                         )}
                       </div>
                     );
                   }
                   
-                  // Regular field rendering (all other fields including productName)
+                  // ✅ Special handling for Sales Margin
+                  if (key === "salesMargin") {
+                    return (
+                      <div className="prf-field" key={key}>
+                        <label className="prf-label">{label} (%)</label>
+                        <input
+                          className={salesMarginDisabled ? "" : "prf-input"}
+                          type="number"
+                          step="0.01"
+                          value={newItem[key] || ""}
+                          onChange={(e) => handleSalesMarginChange(e.target.value)}
+                          disabled={salesMarginDisabled}
+                          style={salesMarginDisabled ? {
+                            width: "100%",
+                            padding: "8px 12px",
+                            fontSize: "14px",
+                            border: "1px solid #444",
+                            borderRadius: "4px",
+                            backgroundColor: "#2c2c2c",
+                            color: "#ffffff",
+                            cursor: "not-allowed"
+                          } : {}}
+                          placeholder={salesMarginDisabled ? "Auto-calculated from Sales Price" : "%"}
+                        />
+                        {salesMarginDisabled && (
+                          <div style={{ fontSize: "11px", color: "#999", marginTop: "2px" }}>
+                            ✓ Auto-calculated (clear Sales Price to edit)
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  // ================= ALL OTHER FIELDS =================
                   return (
                     <div className="prf-field" key={key}>
                       <label className="prf-label">{label}</label>
+
                       {key.includes("Remarks") || key.includes("Details") ? (
                         <textarea
                           className="prf-textarea"
@@ -835,17 +1051,27 @@ export default function PurchaseRequestForm({ email, productGroup }) {
             </div>
           )}
 
-          {/* Render Saved Item Cards */}
+          {/* ✅ Render Saved Item Cards with Delete Button */}
           {form.state.values.items.length > 0 && (
             <div className="prf-item-card-list">
               {form.state.values.items.map((item, idx) => (
                 <div
                   key={idx}
                   className="prf-item-card"
-                  onClick={() => handleEditItem(idx)}
-                  style={{ cursor: "pointer" }}
+                  style={{ 
+                    cursor: "pointer",
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between"
+                  }}
                 >
-                  <div className="prf-item-card-content">
+                  {/* Card Content (clickable for edit) */}
+                  <div
+                    className="prf-item-card-content"
+                    onClick={() => handleEditItem(idx)}
+                    style={{ flex: 1 }}
+                  >
                     <strong>{item.productName || "Unnamed Item"}</strong>
                     <p>
                       Qty: {item.quantity || "—"} | Rate:{" "}
@@ -853,6 +1079,43 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                       {item.totalAmount || "—"}
                     </p>
                   </div>
+
+                  {/* ✅ CRITICAL FIX: Delete Button with type="button" */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteClick(idx, e)}
+                    style={{
+                      position: "absolute",
+                      right: "15px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "50%",
+                      border: "1px solid #666",
+                      backgroundColor: "#333",
+                      color: "#ff6b6b",
+                      fontSize: "18px",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = "#ff4444";
+                      e.target.style.color = "#fff";
+                      e.target.style.borderColor = "#ff6666";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = "#333";
+                      e.target.style.color = "#ff6b6b";
+                      e.target.style.borderColor = "#666";
+                    }}
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
             </div>
@@ -871,9 +1134,18 @@ export default function PurchaseRequestForm({ email, productGroup }) {
                   <input
                     type="number"
                     className="prf-input"
-                    value={f.state.value}
-                    onChange={(e) => f.handleChange(e.target.value)}
+                    value={f.state.value || 0}
+                    disabled={true}
+                    style={{
+                      backgroundColor: "#2c2c2c",
+                      color: "#ffffff",
+                      cursor: "not-allowed"
+                    }}
+                    placeholder="Auto-calculated from items"
                   />
+                  <div style={{ fontSize: "11px", color: "#999", marginTop: "2px" }}>
+                    ✓ Auto-calculated from saved items
+                  </div>
                 </div>
               )}
             </form.Field>
@@ -1056,6 +1328,7 @@ export default function PurchaseRequestForm({ email, productGroup }) {
           </button>
         </div>
       </form>
-    </div>
+      </div>
+    </>
   );
 }
